@@ -164,7 +164,7 @@
 </template>
 
 <script>
-import { loadTickers } from "./api"
+import { subscribeToTicker, unsubscribeFromTicker } from "./api"
 
 export default {
   name: "App",
@@ -194,17 +194,26 @@ export default {
       return price > 1 ? price.toFixed(2) : price.toPrecision(2);
     },
 
+    updateTicker(tickerName, price) {
+      this.tickers
+        .filter(t => t.name === tickerName)
+        .forEach(t => {
+          t.price = price
+        });
+    },
+    
     async updateTickers() {
-      if (!this.tickers.length){
-        return;
-      };
+      // if (!this.tickers.length){
+      //   return;
+      // };
       
-      const exchangeData = await loadTickers(this.tickers.map(t => t.name))
+      // // const exchangeData = await loadTickers(this.tickers.map(t => t.name))
       
-      this.tickers.forEach(ticker => {
-        const price = exchangeData[ticker.name.toUpperCase()]
-        ticker.price = price ?? "-";
-      });
+      // this.tickers.forEach(ticker => {
+      //   const price = exchangeData[ticker.name.toUpperCase()]
+      //   ticker.price = price ?? "-";
+      //   this.graph.push(price)
+      // });
         // currentTicker.price =  data.USD > 1 ? data.USD.toFixed(2) : data.USD.toPrecision(2);
         // if (this.selectedTicker?.name === tickerName) {
         //   this.graph.push(exchangeData.USD);
@@ -220,6 +229,9 @@ export default {
       this.tickers = [...this.tickers, currentTicker]; // здесь можно было с помощью push() добавить currentTicker но чтобы он обновился через вотч, и чтобы удалить элементов из локалсторедже использовали этот метод
       this.filter = "";
       this.ticker = ""; 
+      subscribeToTicker(currentTicker.name, newPrice => 
+          this.updateTicker(currentTicker.name, newPrice)
+      );
     },
 
     select(ticker) {
@@ -232,6 +244,7 @@ export default {
       if(this.selectedTicker === tickerToRemove){
         this.selectedTicker = null;
       }
+      unsubscribeFromTicker(tickerToRemove.name)
     },
 
     normalizeGraph() {
@@ -250,6 +263,11 @@ export default {
     const tickersList = localStorage.getItem("tickersList") //получили сохраненный список из локалсторедж
     if(tickersList){
        this.tickers = JSON.parse(tickersList);
+       this.tickers.forEach(ticker => {
+        subscribeToTicker(ticker.name, (newPrice) => 
+          this.updateTicker(ticker.name, newPrice)
+          );
+       })
     };
 
     const windowData = Object.fromEntries(new URL(window.location).searchParams.entries()) // В консоле получили объект который содержит фильтр и пейдж -- если копировать и запустить в консоле можно это увидеть
